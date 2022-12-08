@@ -15,8 +15,8 @@ pub fn init() {
 
     let config = Config::builder()
         .appender(Appender::builder().build("stdout", Box::new(stdout)))
-        .logger(Logger::builder().build("core", LevelFilter::Debug))
-        .build(Root::builder().appender("stdout").build(LevelFilter::Debug))
+        .logger(Logger::builder().build("core", LevelFilter::Trace))
+        .build(Root::builder().appender("stdout").build(LevelFilter::Trace))
         .unwrap();
 
     log4rs::init_config(config).unwrap();
