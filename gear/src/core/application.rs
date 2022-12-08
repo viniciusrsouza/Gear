@@ -9,31 +9,37 @@ use crate::{
     platform::WinType,
 };
 
-use super::event::EventListener;
+use super::{
+    event::{propagate_event, Event, EventListener, GenericEventListener},
+    layer::{LayerStack, LayerStackImpl},
+};
 
 pub trait Application: EventListener {
     fn init() -> Self;
 }
 
-pub struct Gear {
+pub struct Gear<T: Application> {
     window: Option<Window<WinType<'static>>>,
+    layers: LayerStackImpl,
+    app: T,
 }
 
-impl Gear {
+impl<T: Application> Gear<T> {
     pub fn new() -> Self {
-        Gear { window: None }
-    }
-
-    pub fn run<T: Application>(&mut self) {
         init();
 
-        let mut window = Window::<WinType>::new("Gear", 800, 600);
+        Gear {
+            window: None,
+            layers: LayerStackImpl::new(),
+            app: T::init(),
+        }
+    }
 
-        let mut app = T::init();
-        let mut dispatcher = EventDispatcherImpl::new();
-
+    pub fn run(&mut self) {
         debug!(target: "GEAR", "Application started.");
 
+        let mut window = Window::<WinType>::new("Gear", 800, 600);
+        let mut dispatcher = EventDispatcherImpl::new();
         window.open();
 
         self.window = Some(window);
@@ -43,57 +49,75 @@ impl Gear {
             window.update();
             window.dispatch_events(&mut dispatcher);
 
-            dispatcher.collect(vec![Box::new(self), Box::new(&mut app)]);
+            dispatcher.consume(self);
         }
+
+        self.on_close();
     }
 
     pub fn window(&mut self) -> &mut Window<WinType<'static>> {
         self.window.as_mut().unwrap()
     }
+
+    fn on_close(&mut self) {
+        debug!(target: "GEAR", "Application closed.");
+
+        // detaching layers
+        while let Some(layer) = self.pop_layer() {
+            drop(layer);
+        }
+        while let Some(overlay) = self.pop_overlay() {
+            drop(overlay);
+        }
+    }
 }
 
-impl EventListener for Gear {
-    fn on_app_tick(&mut self) -> bool {
-        false
+impl<T: Application> GenericEventListener for Gear<T> {
+    fn on_event(&mut self, event: Event) -> bool {
+        if propagate_event(event, self) {
+            return true;
+        }
+
+        if propagate_event(event, &mut self.app) {
+            return true;
+        }
+
+        self.layers.on_event(event)
     }
-    fn on_app_update(&mut self) -> bool {
-        false
-    }
-    fn on_app_render(&mut self) -> bool {
-        false
-    }
+}
+
+impl<T: Application> EventListener for Gear<T> {
     fn on_window_close(&mut self) -> bool {
         info!(target: "GEAR", "Window closed.");
         self.window().close();
         true
     }
-    fn on_window_resize(&mut self, _width: u32, _height: u32) -> bool {
-        false
+}
+
+impl<T: Application> LayerStack for Gear<T> {
+    fn push_layer(&mut self, mut layer: Box<dyn super::layer::Layer>) {
+        layer.on_attach();
+        self.layers.push_layer(layer)
     }
-    fn on_key_press(&mut self, _key: super::event::Key, _mods: super::event::Modifier) -> bool {
-        false
+
+    fn push_overlay(&mut self, mut overlay: Box<dyn super::layer::Layer>) {
+        overlay.on_attach();
+        self.layers.push_overlay(overlay)
     }
-    fn on_key_release(&mut self, _key: super::event::Key, _mods: super::event::Modifier) -> bool {
-        false
+
+    fn pop_layer(&mut self) -> Option<Box<dyn super::layer::Layer>> {
+        let mut layer = self.layers.pop_layer();
+        if let Some(layer) = layer.as_mut() {
+            layer.on_detach();
+        }
+        layer
     }
-    fn on_mouse_press(
-        &mut self,
-        _button: super::event::MouseButton,
-        _mods: super::event::Modifier,
-    ) -> bool {
-        false
-    }
-    fn on_mouse_release(
-        &mut self,
-        _button: super::event::MouseButton,
-        _mods: super::event::Modifier,
-    ) -> bool {
-        false
-    }
-    fn on_mouse_move(&mut self, _x: f64, _y: f64) -> bool {
-        false
-    }
-    fn on_mouse_scroll(&mut self, _xoffset: f64, _yoffset: f64) -> bool {
-        false
+
+    fn pop_overlay(&mut self) -> Option<Box<dyn super::layer::Layer>> {
+        let mut overlay = self.layers.pop_overlay();
+        if let Some(overlay) = overlay.as_mut() {
+            overlay.on_detach();
+        }
+        overlay
     }
 }
