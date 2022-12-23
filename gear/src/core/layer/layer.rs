@@ -1,4 +1,4 @@
-use super::event::{propagate_event, Event, EventListener, GenericEventListener};
+use crate::core::event::{propagate_event, Event, EventListener, GenericEventListener};
 
 pub trait Layer: EventListener {
     fn on_attach(&mut self) {}

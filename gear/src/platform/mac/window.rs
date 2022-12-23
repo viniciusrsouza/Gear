@@ -1,12 +1,11 @@
 use glfw::Context;
-use log::info;
+use log::{debug, info};
 
 extern crate glfw;
 
 use crate::core::event::{modifiers as app_modifiers, MouseButton, MouseEvent};
 use crate::core::event::{Event, EventDispatcher, Key, KeyboardEvent, WindowEvent};
-
-use super::WindowApi;
+use crate::platform::WindowApi;
 
 #[cfg(target_os = "macos")]
 pub struct MacWindow {
@@ -19,6 +18,18 @@ pub struct MacWindow {
 impl WindowApi for MacWindow {
     fn new(title: &str, width: u32, height: u32) -> Self {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
+
+        glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
+        glfw.window_hint(glfw::WindowHint::OpenGlProfile(
+            glfw::OpenGlProfileHint::Core,
+        ));
+
+        #[cfg(target_os = "macos")]
+        {
+            glfw.window_hint(glfw::WindowHint::OpenGlForwardCompat(true));
+            debug!(target: "GEAR", "MacOS detected. Setting forward compat.")
+        }
+
         let (window, events) = glfw
             .create_window(width, height, title, glfw::WindowMode::Windowed)
             .expect("Failed to create GLFW window.");
@@ -91,6 +102,10 @@ impl WindowApi for MacWindow {
         info!(target: "GEAR", "closing window");
 
         self.plat_window.set_should_close(true);
+    }
+
+    fn get_proc_address(&mut self, name: &str) -> *const std::ffi::c_void {
+        self.plat_window.get_proc_address(name)
     }
 }
 

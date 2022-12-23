@@ -8,6 +8,7 @@ pub trait WindowApi {
     fn update(&mut self);
     fn close(&mut self);
     fn dispatch(&mut self, dispatcher: &mut dyn EventDispatcher);
+    fn get_proc_address(&mut self, name: &str) -> *const std::ffi::c_void;
 }
 
 macro_rules! WIN_TYPE {

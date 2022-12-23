@@ -11,7 +11,7 @@ use crate::{
 
 use super::{
     event::{propagate_event, Event, EventListener, GenericEventListener},
-    layer::{LayerStack, LayerStackImpl},
+    layer::{imgui::ImGuiLayer, LayerStack, LayerStackImpl},
 };
 
 pub trait Application: EventListener {
@@ -35,8 +35,15 @@ impl<T: Application> Gear<T> {
         }
     }
 
+    fn load_default_layers(&mut self) {
+        let imgui_layer = ImGuiLayer::new();
+        self.push_layer(Box::new(imgui_layer));
+    }
+
     pub fn run(&mut self) {
         debug!(target: "GEAR", "Application started.");
+
+        self.load_default_layers();
 
         let mut window = Window::<WinType>::new("Gear", 800, 600);
         let mut dispatcher = EventDispatcherImpl::new();
