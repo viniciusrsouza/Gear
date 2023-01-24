@@ -8,11 +8,7 @@
 - [x] Cross-platform windowing (GLFW)
 - [x] Event system
 - [x] Input system
-- [ ] Graphics API abstraction
-  - [ ] OpenGL (Primary)
-  - [ ] Vulkan
-  - [ ] DirectX
-  - [ ] Metal
+- [x] OpenGL context
 - [ ] 2D (?)
 - [ ] 3D Renderer
 - [ ] 3D Physics
