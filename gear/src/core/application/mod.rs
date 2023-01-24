@@ -1,17 +1,19 @@
+mod state;
+
 use log::{debug, info};
 
-use crate::{
-    core::{
-        event::{EventDispatcher, EventDispatcherImpl},
-        logger::init,
-        window::Window,
-    },
-    platform::WinType,
+use crate::core::{
+    event::{EventDispatcher, EventDispatcherImpl},
+    logger::init,
+    window::Window,
 };
 
+use self::state::AppState;
+
 use super::{
-    event::{propagate_event, Event, EventListener, GenericEventListener},
+    event::{propagate_event, Event, EventListener, GenericEventListener, Key},
     layer::{imgui::ImGuiLayer, LayerStack, LayerStackImpl},
+    renderer::Renderer,
 };
 
 pub trait Application: EventListener {
@@ -19,9 +21,9 @@ pub trait Application: EventListener {
 }
 
 pub struct Gear<T: Application> {
-    window: Option<Window<WinType<'static>>>,
     layers: LayerStackImpl,
     app: T,
+    state: AppState,
 }
 
 impl<T: Application> Gear<T> {
@@ -29,9 +31,9 @@ impl<T: Application> Gear<T> {
         init();
 
         Gear {
-            window: None,
             layers: LayerStackImpl::new(),
             app: T::init(),
+            state: AppState::new(),
         }
     }
 
@@ -45,25 +47,23 @@ impl<T: Application> Gear<T> {
 
         self.load_default_layers();
 
-        let mut window = Window::<WinType>::new("Gear", 800, 600);
+        let mut window = Window::new("Gear", 800, 600);
         let mut dispatcher = EventDispatcherImpl::new();
         window.open();
 
-        self.window = Some(window);
+        let mut renderer = Renderer::new();
+        renderer.init(&mut window);
 
-        while !self.window().should_close() {
-            let window = self.window();
+        while !self.state.window.should_close() {
+            renderer.render();
+
             window.update();
             window.dispatch_events(&mut dispatcher);
-
             dispatcher.consume(self);
         }
 
+        window.close();
         self.on_close();
-    }
-
-    pub fn window(&mut self) -> &mut Window<WinType<'static>> {
-        self.window.as_mut().unwrap()
     }
 
     fn on_close(&mut self) {
@@ -96,8 +96,19 @@ impl<T: Application> GenericEventListener for Gear<T> {
 impl<T: Application> EventListener for Gear<T> {
     fn on_window_close(&mut self) -> bool {
         info!(target: "GEAR", "Window closed.");
-        self.window().close();
+        self.state.window.close();
         true
+    }
+
+    fn on_key_press(&mut self, key: super::event::Key, _mods: super::event::Modifier) -> bool {
+        match key {
+            Key::Escape => {
+                info!(target: "GEAR", "Escape pressed.");
+                self.state.window.close();
+                true
+            }
+            _ => false,
+        }
     }
 }
 

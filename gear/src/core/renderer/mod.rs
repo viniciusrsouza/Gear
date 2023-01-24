@@ -1,6 +1,4 @@
-use crate::platform::{WinType, WindowApi};
-
-use super::Renderer;
+use crate::core::window::Window;
 
 mod gl {
     include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
@@ -25,26 +23,24 @@ void main()
 }\0
 ";
 
-pub struct OpenGlRenderer {
+pub struct Renderer {
     vbo: u32,
     vao: u32,
     ebo: u32,
     program: u32,
 }
 
-impl OpenGlRenderer {
+impl Renderer {
     pub fn new() -> Self {
-        OpenGlRenderer {
+        Renderer {
             vbo: 0,
             vao: 0,
             ebo: 0,
             program: 0,
         }
     }
-}
 
-impl Renderer for OpenGlRenderer {
-    fn init(&mut self, window: &mut WinType) {
+    pub fn init(&mut self, window: &mut Window) {
         gl::load_with(|name| window.get_proc_address(name));
         unsafe {
             let vertex_shader = gl::CreateShader(gl::VERTEX_SHADER);
@@ -136,7 +132,7 @@ impl Renderer for OpenGlRenderer {
         }
     }
 
-    fn render(&mut self) {
+    pub fn render(&mut self) {
         unsafe {
             gl::ClearColor(0.3, 0.3, 0.5, 1.0);
             gl::Clear(gl::COLOR_BUFFER_BIT);

@@ -3,20 +3,22 @@ use log::{debug, info};
 
 extern crate glfw;
 
-use crate::core::event::{modifiers as app_modifiers, MouseButton, MouseEvent};
-use crate::core::event::{Event, EventDispatcher, Key, KeyboardEvent, WindowEvent};
-use crate::platform::WindowApi;
+use super::event::{
+    modifiers as app_modifiers, AppEvent, Event, EventDispatcher, Key, KeyboardEvent, MouseButton,
+    MouseEvent, WindowEvent,
+};
 
-#[cfg(target_os = "macos")]
-pub struct MacWindow {
-    plat_window: glfw::Window,
+pub struct Window {
+    api: glfw::Window,
     glfw: glfw::Glfw,
     events: std::sync::mpsc::Receiver<(f64, glfw::WindowEvent)>,
+    vsync: bool,
+    resizable: bool,
+    pub should_close: bool,
 }
 
-#[cfg(target_os = "macos")]
-impl WindowApi for MacWindow {
-    fn new(title: &str, width: u32, height: u32) -> Self {
+impl Window {
+    pub fn new(title: &str, width: u32, height: u32) -> Self {
         let mut glfw = glfw::init(glfw::FAIL_ON_ERRORS).unwrap();
 
         glfw.window_hint(glfw::WindowHint::ContextVersion(3, 3));
@@ -33,22 +35,25 @@ impl WindowApi for MacWindow {
         let (window, events) = glfw
             .create_window(width, height, title, glfw::WindowMode::Windowed)
             .expect("Failed to create GLFW window.");
-        MacWindow {
-            plat_window: window,
+        Self {
+            api: window,
             glfw: glfw,
             events: events,
+            vsync: false,
+            resizable: true,
+            should_close: false,
         }
     }
 
     fn create_window(&mut self) {
         info!("creating window");
 
-        self.plat_window.set_all_polling(true);
-        self.plat_window.make_current();
+        self.api.set_all_polling(true);
+        self.api.make_current();
     }
 
-    fn update(&mut self) {
-        self.plat_window.swap_buffers();
+    pub fn update(&mut self) {
+        self.api.swap_buffers();
         self.glfw.poll_events();
     }
 
@@ -98,14 +103,35 @@ impl WindowApi for MacWindow {
         }
     }
 
-    fn close(&mut self) {
+    pub fn close(&mut self) {
         info!(target: "GEAR", "closing window");
 
-        self.plat_window.set_should_close(true);
+        self.api.set_should_close(true);
     }
 
-    fn get_proc_address(&mut self, name: &str) -> *const std::ffi::c_void {
-        self.plat_window.get_proc_address(name)
+    pub fn get_proc_address(&mut self, name: &str) -> *const std::ffi::c_void {
+        self.api.get_proc_address(name)
+    }
+
+    pub fn set_vsync(&mut self, vsync: bool) {
+        self.vsync = vsync;
+    }
+
+    pub fn set_resizable(&mut self, resizable: bool) {
+        self.resizable = resizable;
+    }
+
+    pub fn open(&mut self) {
+        self.create_window();
+    }
+
+    pub fn dispatch_events(&mut self, dispatcher: &mut impl EventDispatcher) {
+        dispatcher.dispatch(Event::App(AppEvent::Tick));
+        self.dispatch(dispatcher);
+    }
+
+    pub fn should_close(&self) -> bool {
+        self.api.should_close()
     }
 }
 
