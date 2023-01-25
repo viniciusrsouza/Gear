@@ -46,7 +46,7 @@ impl Window {
     }
 
     fn create_window(&mut self) {
-        info!("creating window");
+        info!(target: "GEAR", "creating window");
 
         self.api.set_all_polling(true);
         self.api.make_current();

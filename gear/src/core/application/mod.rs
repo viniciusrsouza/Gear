@@ -3,37 +3,43 @@ mod state;
 use log::{debug, info};
 
 use crate::core::{
+    entity::EntityBuffer,
     event::{EventDispatcher, EventDispatcherImpl},
-    logger::init,
     window::Window,
 };
 
 use self::state::AppState;
 
 use super::{
+    assets::AssetsManager,
     event::{propagate_event, Event, EventListener, GenericEventListener, Key},
     layer::{imgui::ImGuiLayer, LayerStack, LayerStackImpl},
+    logger,
     renderer::Renderer,
 };
 
 pub trait Application: EventListener {
     fn init() -> Self;
+    fn post_init(&mut self, assets: &mut AssetsManager, entities: &mut EntityBuffer);
+    fn get_assets_path() -> &'static str;
 }
 
 pub struct Gear<T: Application> {
     layers: LayerStackImpl,
     app: T,
     state: AppState,
+    assets: AssetsManager,
 }
 
 impl<T: Application> Gear<T> {
     pub fn new() -> Self {
-        init();
+        logger::init();
 
         Gear {
             layers: LayerStackImpl::new(),
             app: T::init(),
             state: AppState::new(),
+            assets: AssetsManager::new(T::get_assets_path()),
         }
     }
 
@@ -51,11 +57,15 @@ impl<T: Application> Gear<T> {
         let mut dispatcher = EventDispatcherImpl::new();
         window.open();
 
+        let mut entity_buffer = EntityBuffer::new();
+
         let mut renderer = Renderer::new();
-        renderer.init(&mut window);
+        renderer.init(&mut window, &mut self.assets, &mut entity_buffer);
+
+        self.app.post_init(&mut self.assets, &mut entity_buffer);
 
         while !self.state.window.should_close() {
-            renderer.render();
+            renderer.render(&mut self.assets, &mut entity_buffer);
 
             window.update();
             window.dispatch_events(&mut dispatcher);
