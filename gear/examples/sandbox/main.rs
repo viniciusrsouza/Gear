@@ -22,14 +22,19 @@ impl Application for Sandbox {
         Sandbox {}
     }
 
-    fn post_init(&mut self, assets: &mut AssetsManager, entities: &mut EntityBuffer) {
+    fn post_init(&mut self, ctx: &mut Context) {
+        let Context {
+            ref mut assets,
+            ref mut entity_buffer,
+            ..
+        } = ctx;
         self.load_objects(assets);
 
         if let Err(err) = self.load_shaders(assets) {
             error!("Error: {:?}", err);
         }
 
-        if let Err(err) = self.load_entities(assets, entities) {
+        if let Err(err) = self.load_entities(assets, entity_buffer) {
             error!("Error: {:?}", err);
         }
     }
@@ -42,6 +47,7 @@ impl Application for Sandbox {
 impl Sandbox {
     fn load_shaders(&mut self, assets: &mut AssetsManager) -> Result<(), ShaderError> {
         assets.load_shader("default", "vert.glsl", "frag.glsl")?;
+        assets.load_shader("light", "vert.glsl", "light.glsl")?;
         Ok(())
     }
 
@@ -65,7 +71,7 @@ impl Sandbox {
             .with_rotation(Vector3::from([0.0, 0.0, 1.0]) * 15.0f32.to_radians())
             .build(assets, entities)?;
 
-        entities.add(entity);
+        entities.add_entity(entity);
 
         let entity = EntityBuilder::new()
             .with_shader("default")
@@ -76,7 +82,18 @@ impl Sandbox {
             .with_rotation(Vector3::from([0.0, 0.0, 1.0]) * 60.0f32.to_radians())
             .build(assets, entities)?;
 
-        entities.add(entity);
+        entities.add_entity(entity);
+
+        let light = LightBuilder::new()
+            .with_shader("light")
+            .with_mesh("cube")
+            .with_material(Material::new([1.0, 1.0, 1.0, 1.0]))
+            .with_position(Vector3::from([1.2, 1.0, 2.0]))
+            .with_scale(Vector3::from([0.1, 0.1, 0.1]))
+            .with_rotation(Vector3::from([0.0, 0.0, 1.0]) * 60.0f32.to_radians())
+            .build(assets, entities)?;
+
+        entities.add_light(light);
         Ok(())
     }
 }

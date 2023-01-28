@@ -22,18 +22,21 @@ pub enum AppEvent {
 pub enum WindowEvent {
     Close,
     Resize(u32, u32),
+    Focus(bool),
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum KeyboardEvent {
     Press(Key, Modifier),
     Release(Key, Modifier),
+    Repeat(Key, Modifier),
 }
 
 #[derive(Debug, Copy, Clone)]
 pub enum MouseEvent {
     Press(MouseButton, Modifier),
     Release(MouseButton, Modifier),
+    Repeat(MouseButton, Modifier),
     Move(f64, f64),
     Scroll(f64, f64),
 }

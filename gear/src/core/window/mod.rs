@@ -35,6 +35,7 @@ impl Window {
         let (window, events) = glfw
             .create_window(width, height, title, glfw::WindowMode::Windowed)
             .expect("Failed to create GLFW window.");
+
         Self {
             api: window,
             glfw: glfw,
@@ -75,7 +76,9 @@ impl Window {
                     glfw::Action::Release => dispatcher.dispatch(Event::Keyboard(
                         KeyboardEvent::Release(glfw_to_key(key), glfw_to_modifier(modifiers)),
                     )),
-                    _ => {}
+                    glfw::Action::Repeat => dispatcher.dispatch(Event::Keyboard(
+                        KeyboardEvent::Repeat(glfw_to_key(key), glfw_to_modifier(modifiers)),
+                    )),
                 },
 
                 // mouse
@@ -90,13 +93,20 @@ impl Window {
                             glfw_to_modifier(modifiers),
                         )))
                     }
-                    _ => {}
+                    glfw::Action::Repeat => dispatcher.dispatch(Event::Mouse(MouseEvent::Repeat(
+                        glfw_to_mouse_button(button),
+                        glfw_to_modifier(modifiers),
+                    ))),
                 },
                 glfw::WindowEvent::CursorPos(x, y) => {
                     dispatcher.dispatch(Event::Mouse(MouseEvent::Move(x, y)))
                 }
                 glfw::WindowEvent::Scroll(x, y) => {
                     dispatcher.dispatch(Event::Mouse(MouseEvent::Scroll(x, y)))
+                }
+                glfw::WindowEvent::Focus(focus) => {
+                    info!(target: "GEAR", "focus: {}", focus);
+                    dispatcher.dispatch(Event::Window(WindowEvent::Focus(focus)))
                 }
                 _ => {}
             };
@@ -132,6 +142,23 @@ impl Window {
 
     pub fn should_close(&self) -> bool {
         self.api.should_close()
+    }
+
+    pub fn get_aspect_ratio(&self) -> f32 {
+        let (width, height) = self.api.get_size();
+        width as f32 / height as f32
+    }
+
+    pub fn set_mouse_lock(&mut self, lock: bool) {
+        self.api.set_cursor_mode(if lock {
+            glfw::CursorMode::Disabled
+        } else {
+            glfw::CursorMode::Normal
+        });
+    }
+
+    pub fn has_focus(&self) -> bool {
+        self.api.is_focused()
     }
 }
 

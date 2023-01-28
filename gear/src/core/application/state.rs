@@ -4,12 +4,14 @@ pub struct AppState {
 
 pub struct WindowState {
     should_close: bool,
+    focus: bool,
 }
 
 impl WindowState {
     pub fn new() -> Self {
         Self {
             should_close: false,
+            focus: false,
         }
     }
 
@@ -19,6 +21,14 @@ impl WindowState {
 
     pub fn close(&mut self) {
         self.should_close = true;
+    }
+
+    pub fn is_focused(&mut self) -> bool {
+        self.focus
+    }
+
+    pub fn set_focus(&mut self, locked: bool) {
+        self.focus = locked;
     }
 }
 

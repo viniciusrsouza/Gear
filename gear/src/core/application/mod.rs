@@ -1,9 +1,10 @@
+pub mod context;
 mod state;
 
-use log::{debug, info};
+use context::Context;
+use log::{debug, info, trace};
 
 use crate::core::{
-    entity::EntityBuffer,
     event::{EventDispatcher, EventDispatcherImpl},
     window::Window,
 };
@@ -11,7 +12,6 @@ use crate::core::{
 use self::state::AppState;
 
 use super::{
-    assets::AssetsManager,
     event::{propagate_event, Event, EventListener, GenericEventListener, Key},
     layer::{imgui::ImGuiLayer, LayerStack, LayerStackImpl},
     logger,
@@ -20,7 +20,7 @@ use super::{
 
 pub trait Application: EventListener {
     fn init() -> Self;
-    fn post_init(&mut self, assets: &mut AssetsManager, entities: &mut EntityBuffer);
+    fn post_init(&mut self, context: &mut Context);
     fn get_assets_path() -> &'static str;
 }
 
@@ -28,18 +28,22 @@ pub struct Gear<T: Application> {
     layers: LayerStackImpl,
     app: T,
     state: AppState,
-    assets: AssetsManager,
+    context: context::Context,
 }
 
 impl<T: Application> Gear<T> {
     pub fn new() -> Self {
         logger::init();
 
+        let mut window = Window::new("Gear", 800, 600);
+        window.open();
+        window.set_mouse_lock(true);
+
         Gear {
             layers: LayerStackImpl::new(),
             app: T::init(),
             state: AppState::new(),
-            assets: AssetsManager::new(T::get_assets_path()),
+            context: Context::new(T::get_assets_path(), window),
         }
     }
 
@@ -53,26 +57,23 @@ impl<T: Application> Gear<T> {
 
         self.load_default_layers();
 
-        let mut window = Window::new("Gear", 800, 600);
         let mut dispatcher = EventDispatcherImpl::new();
-        window.open();
-
-        let mut entity_buffer = EntityBuffer::new();
 
         let mut renderer = Renderer::new();
-        renderer.init(&mut window, &mut self.assets, &mut entity_buffer);
+        renderer.init(&mut self.context);
 
-        self.app.post_init(&mut self.assets, &mut entity_buffer);
+        self.app.post_init(&mut self.context);
 
         while !self.state.window.should_close() {
-            renderer.render(&mut self.assets, &mut entity_buffer);
+            self.context.camera.update();
+            renderer.render(&mut self.context);
 
-            window.update();
-            window.dispatch_events(&mut dispatcher);
+            self.context.window.update();
+            self.context.window.dispatch_events(&mut dispatcher);
             dispatcher.consume(self);
         }
 
-        window.close();
+        self.context.window.close();
         self.on_close();
     }
 
@@ -117,8 +118,59 @@ impl<T: Application> EventListener for Gear<T> {
                 self.state.window.close();
                 true
             }
+            Key::W => {
+                self.context.camera.move_forward(0.1);
+                false
+            }
+            Key::S => {
+                self.context.camera.move_backward(0.1);
+                false
+            }
+            Key::A => {
+                self.context.camera.move_left(0.1);
+                false
+            }
+            Key::D => {
+                self.context.camera.move_right(0.1);
+                false
+            }
             _ => false,
         }
+    }
+
+    fn on_key_repeat(&mut self, key: Key, _mods: super::event::Modifier) -> bool {
+        match key {
+            Key::W => {
+                self.context.camera.move_forward(0.1);
+                false
+            }
+            Key::S => {
+                self.context.camera.move_backward(0.1);
+                false
+            }
+            Key::A => {
+                self.context.camera.move_left(0.1);
+                false
+            }
+            Key::D => {
+                self.context.camera.move_right(0.1);
+                false
+            }
+            _ => false,
+        }
+    }
+
+    fn on_mouse_move(&mut self, x: f64, y: f64) -> bool {
+        if self.state.window.is_focused() {
+            self.context.camera.on_mouse_move(x as f32, y as f32);
+        }
+        false
+    }
+
+    fn on_window_focus(&mut self, focused: bool) -> bool {
+        trace!(target: "GEAR", "focus: {}", focused);
+        self.state.window.set_focus(focused);
+        false
     }
 }
 

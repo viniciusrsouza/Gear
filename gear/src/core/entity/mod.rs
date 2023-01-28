@@ -1,15 +1,17 @@
 mod buffer;
+mod light;
 mod mesh;
+mod player;
 mod renderable;
 mod transform;
 
 use nalgebra::{Vector3, Vector4};
 
 pub use buffer::EntityBuffer;
+pub use light::{Light, LightBuilder};
 pub use mesh::{cube, square, Mesh};
+pub use renderable::Renderable;
 pub use transform::Transform;
-
-use renderable::Renderable;
 
 use super::assets::AssetsManager;
 
@@ -30,8 +32,6 @@ impl Material {
 pub struct Entity {
     pub id: u32,
     pub renderable: Renderable,
-    pub transform: Transform,
-    pub shader: String,
 }
 
 impl Entity {
@@ -44,7 +44,11 @@ impl Entity {
     }
 
     pub fn get_mesh_id(&self) -> u32 {
-        self.renderable.get_mesh_id()
+        self.renderable.mesh_id
+    }
+
+    pub fn get_mesh_indices(&self) -> u32 {
+        self.renderable.mesh_indices
     }
 }
 
@@ -116,15 +120,14 @@ impl EntityBuilder {
         buffer: &mut EntityBuffer,
     ) -> Result<Entity, EntityError> {
         let mesh_id;
+        let mesh_indices;
         let mesh = self.mesh.expect("Mesh not found");
         if let Some(mesh_obj) = assets.get_object(mesh.as_str()) {
             mesh_id = mesh_obj.get_id();
+            mesh_indices = mesh_obj.indices.len() as u32;
         } else {
             return Err(EntityError::MeshNotFound);
         }
-
-        let mut renderable = Renderable::new(mesh, self.material);
-        renderable.set_mesh_id(mesh_id);
 
         let transform = Transform {
             position: self.position,
@@ -132,11 +135,18 @@ impl EntityBuilder {
             scale: self.scale,
         };
 
+        let renderable = Renderable {
+            mesh: mesh,
+            material: self.material,
+            transform,
+            shader: self.shader.expect("A shader is required"),
+            mesh_id,
+            mesh_indices,
+        };
+
         let entity = Entity {
             id: buffer.get_id(),
             renderable,
-            transform: transform,
-            shader: self.shader.expect("A shader is required"),
         };
 
         Ok(entity)
@@ -147,4 +157,5 @@ impl EntityBuilder {
 pub enum EntityError {
     MeshNotFound,
     ShaderNotFound,
+    EntityNotFound,
 }

@@ -2,10 +2,10 @@ mod uniform;
 
 use std::ffi::CString;
 
-use crate::core::entity;
+use crate::core::entity::{self, Light};
 
 use self::gl::types::{GLchar, GLint};
-use super::gl;
+use super::{camera::Camera, gl};
 
 pub struct Shader {
     id: u32,
@@ -45,6 +45,34 @@ impl Shader {
         unsafe {
             gl::UseProgram(self.id);
             self.set_vec4("material", &material.color);
+        }
+    }
+
+    pub fn with_camera(&self, camera: &Camera, aspect_ratio: f32) {
+        unsafe {
+            gl::UseProgram(self.id);
+
+            let view = camera.get_view_matrix();
+            self.set_mat4("view", &view);
+
+            let projection = camera.get_projection_matrix(aspect_ratio);
+            self.set_mat4("projection", &projection);
+
+            self.set_vec3("viewPos", &camera.position);
+        }
+    }
+
+    pub fn with_light(&self, light: &Light) {
+        unsafe {
+            gl::UseProgram(self.id);
+            self.set_vec3(
+                "light.position",
+                &light.entity.renderable.transform.position,
+            );
+            self.set_vec3("light.color", &light.color);
+            self.set_float("light.ambient", light.ambient);
+            self.set_float("light.diffuse", light.diffuse);
+            self.set_float("light.specular", light.specular);
         }
     }
 }
